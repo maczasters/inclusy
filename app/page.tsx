@@ -789,7 +789,7 @@ const handleGetGuidance = async (
                           <div className="mt-4 space-y-2">
                             <h4 className="text-sm font-semibold">Next Steps</h4>
                             <ul className="list-disc pl-5 text-sm">
-                              {actionOutput.checklist_items.map((item, i) => (
+                              {actionOutput.checklist_items.map((item: string, i: number) => (
                                 <li key={i}>{item}</li>
                               ))}
                             </ul>
