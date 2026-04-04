@@ -10,11 +10,19 @@ async function callResponsesAPI(
   input: string,
   model: string = "gpt-4o-mini"
 ) {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  console.log("OPENAI_API_KEY exists:", !!apiKey);
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is missing in server environment.");
+  }
+
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
