@@ -65,7 +65,7 @@ export function rateLimit(ip: string): {
 
 export function validateUserText(value: unknown): string | null {
   if (typeof value !== "string") {
-    return "Input must be text.";
+    return "Please enter your situation in text form.";
   }
 
   const trimmed = value.trim();
