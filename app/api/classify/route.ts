@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     console.log("CLASSIFY BODY:", JSON.stringify(body));
-    const userInput = body?.userInput ?? body?.user_input ?? body?.input;
+    const userInput =
+      body?.userInput ?? body?.user_input ?? body?.input;
     
     const validationError = validateUserText(userInput);
     if (validationError) {
