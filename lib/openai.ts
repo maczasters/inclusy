@@ -6,6 +6,16 @@ import {
   SYSTEM_CONTEXT,
 } from "./prompts";
 
+function ensureReasonableInput(input: string) {
+  if (!input.trim()) {
+    throw new Error("Input cannot be empty.");
+  }
+
+  if (input.length > 8000) {
+    throw new Error("Prompt too long.");
+  }
+}
+
 async function callResponsesAPI(
   input: string,
   model: string = "gpt-4o-mini"
@@ -17,6 +27,8 @@ async function callResponsesAPI(
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is missing in server environment.");
   }
+
+  ensureReasonableInput(input);
 
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
