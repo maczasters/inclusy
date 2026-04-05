@@ -30,12 +30,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    console.log("FOLLOWUP BODY:", JSON.stringify(body));
 
     const userInput =
       body?.userInput ?? body?.user_input ?? body?.input;
 
     const classification = body?.classification;
-
+    console.log("FOLLOWUP CLASSIFICATION:", JSON.stringify(classification));
+    
     const validationError = validateUserText(userInput);
     if (validationError) {
       return NextResponse.json(

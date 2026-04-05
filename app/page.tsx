@@ -220,67 +220,61 @@ const handleStart = async () => {
 
     await trackEvent("started_guidance", { session_id: sessionId });
 
-    const classifyData = await safeFetchJSON("/api/classify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        userInput: input,
-      }),
-    });
+const classifyData = await safeFetchJSON("/api/classify", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    session_id: sessionId,
+    userInput: input,
+  }),
+});
 
-    if (!classifyData.success) {
-      throw new Error(
-        classifyData?.errors?.[0] || "Failed to classify the request."
-      );
-    }
+if (!classifyData.success) {
+  throw new Error(
+    classifyData?.errors?.[0] || "Failed to classify the request."
+  );
+}
 
-    setClassification(classifyData.classification);
+const classificationResult = classifyData.output;
+setClassification(classificationResult);
 
-    await trackEvent("classification_completed", {
-      primary_user_type:
-        classifyData.classification?.primary_user_type ?? null,
-      primary_scenario:
-        classifyData.classification?.primary_scenario ?? null,
-      user_intent: classifyData.classification?.user_intent ?? null,
-      timing: classifyData.classification?.timing ?? null,
-    });
+await trackEvent("classification_completed", {
+  primary_user_type: classificationResult?.primary_user_type ?? null,
+  primary_scenario: classificationResult?.primary_scenario ?? null,
+  user_intent: classificationResult?.user_intent ?? null,
+  timing: classificationResult?.timing ?? null,
+});
 
-    setLoadingStep("Preparing follow-up questions...");
+setLoadingStep("Preparing follow-up questions...");
 
-    const followupData = await safeFetchJSON("/api/followup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        user_input: input,
-        classification: classifyData.classification,
-      }),
-    });
+const followupData = await safeFetchJSON("/api/followup", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    userInput: input,
+    classification: classificationResult,
+  }),
+});
 
-    if (!followupData.success) {
-      throw new Error(
-        followupData?.errors?.[0] ||
-          "Failed to generate follow-up questions."
-      );
-    }
+if (!followupData.success) {
+  throw new Error(
+    followupData?.errors?.[0] || "Failed to generate follow-up questions."
+  );
+}
 
-    const nextQuestions: FollowupQuestion[] = followupData.questions || [];
-    setQuestions(nextQuestions);
+const nextQuestions: FollowupQuestion[] = followupData.output?.questions || [];
+setQuestions(nextQuestions);
 
-    if (
-      nextQuestions.length > 0 &&
-      classifyData.classification?.needs_clarification
-    ) {
-      setStage("followup");
-      await trackEvent("followup_shown", { count: nextQuestions.length });
-    } else {
-      await handleGetGuidance(classifyData.classification, {});
-    }
+if (nextQuestions.length > 0 && classificationResult?.needs_clarification) {
+  setStage("followup");
+  await trackEvent("followup_shown", { count: nextQuestions.length });
+} else {
+  await handleGetGuidance(classificationResult, {});
+}
   } catch (err: unknown) {
     setError(err instanceof Error ? err.message : "Something went wrong.");
   } finally {
@@ -300,19 +294,23 @@ const handleGetGuidance = async (
     const activeClassification = classificationOverride || classification;
     const activeAnswers = answersOverride || answers;
 
-   const data = await safeFetchJSON("/api/guidance", {
+    const data = await safeFetchJSON("/api/guidance", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ input, classification, answers }),
+      body: JSON.stringify({
+        input,
+        classification: activeClassification,
+        answers: activeAnswers,
+      }),
     });
 
     if (!data.success) {
       throw new Error(data?.errors?.[0] || "Failed to generate guidance.");
     }
 
-    setGuidance(data.guidance || null);
+    setGuidance(data.output || null);
     setStage("done");
 
     await trackEvent("guidance_generated", {
@@ -321,12 +319,12 @@ const handleGetGuidance = async (
       user_intent: activeClassification?.user_intent ?? null,
       timing: activeClassification?.timing ?? null,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     setError(
-  err instanceof Error
-    ? err.message
-    : "Something went wrong while generating guidance."
-);
+      err instanceof Error
+        ? err.message
+        : "Something went wrong while generating guidance."
+    );
   } finally {
     setLoading(false);
     setLoadingStep(null);
