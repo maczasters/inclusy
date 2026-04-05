@@ -227,7 +227,7 @@ const handleStart = async () => {
       },
       body: JSON.stringify({
         session_id: sessionId,
-        user_input: input,
+        userInput: input,
       }),
     });
 
