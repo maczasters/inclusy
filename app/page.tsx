@@ -397,27 +397,27 @@ const handleGetGuidance = async (
             <div className="space-y-6">
               <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-card)] sm:p-8">
                 <div className="mb-8">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src="/inclusy-logo.png"
-                      alt="Inclusy"
-                      className="h-32 w-auto object-contain"
-                    />
+                    <div className="flex flex-col items-start gap-0">
+                      <img
+                        src="/inclusy-logo.png"
+                        alt="Inclusy"
+                        className="h-24 w-auto object-contain sm:h-32"
+                      />
 
-                   <p className="text-xl font-semibold uppercase tracking-[0.18em] text-[var(--text-main)]">
-                    Accessibility Navigation
-                  </p>
+                      <p className="text-base font-semibold uppercase tracking-[0.08em] text-[var(--text-main)] sm:text-lg sm:tracking-[0.12em]">
+                        Accessibility Guidance
+                      </p>
+                    </div>
+
+                    <h1 className="mt-8 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                      Tell us what’s going on.
+                    </h1>
+
+                    <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-muted)]">
+                      Describe a barrier, ask a question, or get help planning for
+                      an accessibility-related situation.
+                    </p>
                   </div>
-
-                  <h1 className="mt-6 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
-                    Tell us what’s going on.
-                  </h1>
-
-                  <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-muted)]">
-                    Describe a barrier, ask a question, or get help planning for
-                    an accessibility-related situation.
-                  </p>
-                </div>
 
                 <div className="mt-8">
                   <label
