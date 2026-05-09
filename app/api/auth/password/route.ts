@@ -9,10 +9,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, authorized: false });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, authorized: false },
-      { status: 500 }
-    );
-  }
+ } catch (error: unknown) {
+  console.error("PASSWORD AUTH ERROR:", error);
+
+  return NextResponse.json(
+    { success: false, error: "Invalid password." },
+    { status: 401 }
+  );
+ }
 }

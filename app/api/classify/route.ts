@@ -61,15 +61,20 @@ export async function POST(req: NextRequest) {
       success: true,
       output,
     });
-  } catch (error: any) {
-    console.error("CLASSIFY ERROR:", error);
+ } catch (error: unknown) {
+  console.error("CLASSIFY ERROR:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        errors: [error?.message || "Failed to classify input."],
-      },
-      { status: 500 }
-    );
-  }
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Failed to classify input.";
+
+  return NextResponse.json(
+    {
+      success: false,
+      errors: [message],
+    },
+    { status: 500 }
+  );
+}
 }

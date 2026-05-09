@@ -1,89 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runGuidance } from "../../../lib/openai";
-import {
-  containsBlockedContent,
-  getClientIp,
-  rateLimit,
-} from "../../../lib/security";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function findBlockedText(value: unknown): boolean {
-  if (typeof value === "string") {
-    return containsBlockedContent(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.some(findBlockedText);
-  }
-
-  if (isPlainObject(value)) {
-    return Object.values(value).some(findBlockedText);
-  }
-
-  return false;
-}
+import { deriveGuidanceFlags } from "@/lib/guidance/decisionFlags";
+import { renderGuidance } from "@/lib/guidance/renderGuidance";
+import { GuidanceInput } from "@/lib/guidance/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = getClientIp(req.headers);
-    const limit = rateLimit(ip);
+    const body = (await req.json()) as Partial<GuidanceInput>;
+    const userInput = (body.userInput ?? "").trim();
 
-    if (!limit.allowed) {
+    if (!userInput) {
       return NextResponse.json(
-        {
-          success: false,
-          errors: [
-            `Too many requests. Try again in ${limit.retryAfterSeconds} seconds.`,
-          ],
-        },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(limit.retryAfterSeconds),
-          },
-        }
-      );
-    }
-
-    const body = await req.json();
-
-    if (!isPlainObject(body)) {
-      return NextResponse.json(
-        {
-          success: false,
-          errors: ["Invalid request body."],
-        },
+        { error: "userInput is required." },
         { status: 400 }
       );
     }
 
-    if (findBlockedText(body)) {
+    if (userInput.length > 4000) {
       return NextResponse.json(
-        {
-          success: false,
-          errors: ["Request could not be processed."],
-        },
+        { error: "Input is too long." },
         { status: 400 }
       );
     }
 
-    const output = await runGuidance(body);
+    const flags = deriveGuidanceFlags({ userInput });
+    const guidance = renderGuidance(flags);
 
     return NextResponse.json({
-      success: true,
-      output,
+      ok: true,
+      guidance,
+      flags,
     });
-  } catch (error: any) {
-    console.error("GUIDANCE ERROR:", error);
-
+  } catch (error) {
+    console.error("Guidance route error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        errors: [error?.message || "Failed to generate guidance."],
-      },
+      { error: "Failed to generate guidance." },
       { status: 500 }
     );
   }

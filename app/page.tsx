@@ -1,14 +1,45 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getAvailableActions } from "../lib/actionAvailability";
-import {
-  ClassificationResult,
-  FollowupQuestion,
-  GuidanceSections,
-} from "../lib/type";
+import { ClassificationResult, FollowupQuestion } from "../lib/type";
+import type {
+  ActionBlock,
+  DeadlineBlock,
+  FilingOptionBlock,
+  GuidanceResponse,
+  HelpResourceBlock,
+  LawBlock,
+  SourceBlock,
+} from "../lib/guidance/types";
 
-async function safeFetchJSON(url: string, options?: RequestInit) {
+type GuidanceApiResponse = {
+  ok?: boolean;
+  success?: boolean;
+  guidance?: GuidanceResponse;
+  output?: GuidanceResponse;
+  flags?: unknown;
+  error?: string;
+  errors?: string[];
+};
+
+type ActionOutput = {
+  title?: string;
+  subject?: string;
+  body?: string | Record<string, unknown>;
+  checklist_items?: string[];
+  notes?: string[];
+};
+
+type ActionApiResponse = {
+  success?: boolean;
+  output?: ActionOutput;
+  error?: string;
+  errors?: string[];
+};
+
+async function safeFetchJSON(url: string, options?: RequestInit): Promise<unknown> {
   const res = await fetch(url, options);
   const text = await res.text();
 
@@ -16,7 +47,7 @@ async function safeFetchJSON(url: string, options?: RequestInit) {
   if (!text) throw new Error("Empty response");
 
   try {
-    return JSON.parse(text);
+    return JSON.parse(text) as unknown;
   } catch {
     throw new Error("Invalid JSON");
   }
@@ -37,7 +68,8 @@ const QUICK_STARTS = [
   },
   {
     label: "Digital Accessibility",
-    value: "I need digital accessibility guidance for a website, app, or document.",
+    value:
+      "I need digital accessibility guidance for a website, app, or document.",
   },
   {
     label: "Accessible Event Planning",
@@ -53,7 +85,8 @@ const QUICK_STARTS = [
   },
   {
     label: "Not Sure",
-    value: "I’m not sure where my situation fits, but I need accessibility guidance.",
+    value:
+      "I’m not sure where my situation fits, but I need accessibility guidance.",
   },
 ];
 
@@ -90,12 +123,204 @@ function ListBlock({ items }: { items?: string[] }) {
   return (
     <ul className="space-y-2">
       {items.map((item, i) => (
-        <li key={i} className="flex gap-3">
+        <li key={`${item}-${i}`} className="flex gap-3">
           <span
             className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--primary)]"
             aria-hidden="true"
           />
           <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ActionListBlock({ items }: { items?: ActionBlock[] }) {
+  return <ListBlock items={items?.map((item) => item.text)} />;
+}
+
+function DeadlineListBlock({ items }: { items?: DeadlineBlock[] }) {
+  if (!items || items.length === 0) {
+    return <p className="text-[var(--text-soft)]">No deadline listed.</p>;
+  }
+
+  return (
+    <ul className="space-y-3">
+      {items.map((item, i) => (
+        <li key={`${item.text}-${i}`} className="flex gap-3">
+          <span
+            className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--warning)]"
+            aria-hidden="true"
+          />
+          <span>
+            {item.title && (
+              <strong className="text-[var(--text-main)]">{item.title}: </strong>
+            )}
+            {item.text}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ResourceCards({ items }: { items?: HelpResourceBlock[] }) {
+  if (!items || items.length === 0) {
+    return <p className="text-[var(--text-soft)]">No resources listed.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div
+          key={item.name}
+          className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-sm"
+        >
+          <h3 className="font-semibold text-[var(--text-main)]">{item.name}</h3>
+          <p className="mt-1">{item.description}</p>
+
+          <div className="mt-2 space-y-1 text-xs">
+            {item.website && (
+              <p>
+                <strong>Website: </strong>
+                <a
+                  href={item.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--primary)] underline-offset-4 hover:underline"
+                >
+                  {item.website}
+                </a>
+              </p>
+            )}
+            {item.phone && (
+              <p>
+                <strong>Phone: </strong>
+                {item.phone}
+              </p>
+            )}
+            {item.email && (
+              <p>
+                <strong>Email: </strong>
+                {item.email}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FilingCards({ items }: { items?: FilingOptionBlock[] }) {
+  if (!items || items.length === 0) {
+    return <p className="text-[var(--text-soft)]">No filing options listed.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div
+          key={item.office}
+          className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-sm"
+        >
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <h3 className="font-semibold text-[var(--text-main)]">
+              {item.office}
+            </h3>
+            <span className="w-fit rounded-full border border-[var(--border-strong)] bg-[var(--primary-soft)] px-3 py-1 text-xs font-medium uppercase tracking-wide text-[var(--primary)]">
+              {item.level}
+            </span>
+          </div>
+
+          <p className="mt-2">{item.what_it_handles}</p>
+
+          <div className="mt-2 space-y-1 text-xs">
+            {item.website && (
+              <p>
+                <strong>Website: </strong>
+                <a
+                  href={item.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--primary)] underline-offset-4 hover:underline"
+                >
+                  {item.website}
+                </a>
+              </p>
+            )}
+            {item.phone && (
+              <p>
+                <strong>Phone: </strong>
+                {item.phone}
+              </p>
+            )}
+            {item.email && (
+              <p>
+                <strong>Email: </strong>
+                {item.email}
+              </p>
+            )}
+            {item.notes && <p>{item.notes}</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LawCards({ items }: { items?: LawBlock[] }) {
+  if (!items || items.length === 0) {
+    return <p className="text-[var(--text-soft)]">No law listed.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((law) => (
+        <div
+          key={`${law.law_name}-${law.citation}`}
+          className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-sm"
+        >
+          <h3 className="font-semibold text-[var(--text-main)]">
+            {law.law_name}
+          </h3>
+          <p className="mt-1 font-medium text-[var(--text-main)]">
+            {law.title_or_section}
+          </p>
+          <p className="mt-1">{law.description}</p>
+          <p className="mt-2 text-xs">
+            <strong>Citation: </strong>
+            {law.citation}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SourceList({ items }: { items?: SourceBlock[] }) {
+  if (!items || items.length === 0) {
+    return <p className="text-[var(--text-soft)]">No sources listed.</p>;
+  }
+
+  return (
+    <ul className="space-y-2">
+      {items.map((item) => (
+        <li key={item.name}>
+          <strong className="text-[var(--text-main)]">{item.name}</strong>
+          {item.website && (
+            <>
+              {" — "}
+              <a
+                href={item.website}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--primary)] underline-offset-4 hover:underline"
+              >
+                {item.website}
+              </a>
+            </>
+          )}
         </li>
       ))}
     </ul>
@@ -149,14 +374,14 @@ export default function HomePage() {
     useState<ClassificationResult | null>(null);
   const [questions, setQuestions] = useState<FollowupQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [guidance, setGuidance] = useState<GuidanceSections | null>(null);
+  const [guidance, setGuidance] = useState<GuidanceResponse | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<string | null>(null);
   const [stage, setStage] = useState<"idle" | "followup" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const [actionOutput, setActionOutput] = useState<any>(null);
+  const [actionOutput, setActionOutput] = useState<ActionOutput | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const responseRegionRef = useRef<HTMLDivElement | null>(null);
@@ -197,172 +422,189 @@ export default function HomePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-const handleStart = async () => {
-  if (!consent) {
-    setError("Please accept the guidance notice before continuing.");
-    return;
-  }
-
-  if (!input.trim()) {
-    setError("Please describe your situation or choose a starting point.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    setLoadingStep("Understanding your situation...");
-    setError(null);
-    setGuidance(null);
-    setQuestions([]);
-    setAnswers({});
-    setClassification(null);
-    setActionOutput(null);
-
-    await trackEvent("started_guidance", { session_id: sessionId });
-
-const classifyData = await safeFetchJSON("/api/classify", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    session_id: sessionId,
-    userInput: input,
-  }),
-});
-
-if (!classifyData.success) {
-  throw new Error(
-    classifyData?.errors?.[0] || "Failed to classify the request."
-  );
-}
-
-const classificationResult = classifyData.output;
-setClassification(classificationResult);
-
-await trackEvent("classification_completed", {
-  primary_user_type: classificationResult?.primary_user_type ?? null,
-  primary_scenario: classificationResult?.primary_scenario ?? null,
-  user_intent: classificationResult?.user_intent ?? null,
-  timing: classificationResult?.timing ?? null,
-});
-
-setLoadingStep("Preparing follow-up questions...");
-
-const followupData = await safeFetchJSON("/api/followup", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    userInput: input,
-    classification: classificationResult,
-  }),
-});
-
-if (!followupData.success) {
-  throw new Error(
-    followupData?.errors?.[0] || "Failed to generate follow-up questions."
-  );
-}
-
-const nextQuestions: FollowupQuestion[] = followupData.output?.questions || [];
-setQuestions(nextQuestions);
-
-if (nextQuestions.length > 0 && classificationResult?.needs_clarification) {
-  setStage("followup");
-  await trackEvent("followup_shown", { count: nextQuestions.length });
-} else {
-  await handleGetGuidance(classificationResult, {});
-}
-  } catch (err: unknown) {
-    setError(err instanceof Error ? err.message : "Something went wrong.");
-  } finally {
-    setLoading(false);
-    setLoadingStep(null);
-  }
-};
-const handleGetGuidance = async (
-  classificationOverride?: ClassificationResult,
-  answersOverride?: Record<string, string>
-) => {
-  try {
-    setLoading(true);
-    setLoadingStep("Generating guidance...");
-    setError(null);
-
-    const activeClassification = classificationOverride || classification;
-    const activeAnswers = answersOverride || answers;
-
-    const data = await safeFetchJSON("/api/guidance", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input,
-        classification: activeClassification,
-        answers: activeAnswers,
-      }),
-    });
-
-    if (!data.success) {
-      throw new Error(data?.errors?.[0] || "Failed to generate guidance.");
+  const handleStart = async () => {
+    if (!consent) {
+      setError("Please accept the guidance notice before continuing.");
+      return;
     }
 
-    setGuidance(data.output || null);
-    setStage("done");
+    if (!input.trim()) {
+      setError("Please describe your situation or choose a starting point.");
+      return;
+    }
 
-    await trackEvent("guidance_generated", {
-      primary_user_type: activeClassification?.primary_user_type ?? null,
-      primary_scenario: activeClassification?.primary_scenario ?? null,
-      user_intent: activeClassification?.user_intent ?? null,
-      timing: activeClassification?.timing ?? null,
-    });
-  } catch (err: unknown) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Something went wrong while generating guidance."
-    );
-  } finally {
-    setLoading(false);
-    setLoadingStep(null);
-  }
-};
+    try {
+      setLoading(true);
+      setLoadingStep("Understanding your situation...");
+      setError(null);
+      setGuidance(null);
+      setQuestions([]);
+      setAnswers({});
+      setClassification(null);
+      setActionOutput(null);
+
+      await trackEvent("started_guidance", { session_id: sessionId });
+
+      const classifyData = (await safeFetchJSON("/api/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          userInput: input,
+        }),
+      })) as {
+        success?: boolean;
+        output?: ClassificationResult;
+        errors?: string[];
+      };
+
+      if (!classifyData.success || !classifyData.output) {
+        throw new Error(
+          classifyData?.errors?.[0] || "Failed to classify the request."
+        );
+      }
+
+      const classificationResult = classifyData.output;
+      setClassification(classificationResult);
+
+      await trackEvent("classification_completed", {
+        primary_user_type: classificationResult?.primary_user_type ?? null,
+        primary_scenario: classificationResult?.primary_scenario ?? null,
+        user_intent: classificationResult?.user_intent ?? null,
+        timing: classificationResult?.timing ?? null,
+      });
+
+      setLoadingStep("Preparing follow-up questions...");
+
+      const followupData = (await safeFetchJSON("/api/followup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userInput: input,
+          classification: classificationResult,
+        }),
+      })) as {
+        success?: boolean;
+        output?: {
+          questions?: FollowupQuestion[];
+        };
+        errors?: string[];
+      };
+
+      if (!followupData.success) {
+        throw new Error(
+          followupData?.errors?.[0] ||
+            "Failed to generate follow-up questions."
+        );
+      }
+
+      const nextQuestions: FollowupQuestion[] =
+        followupData.output?.questions || [];
+      setQuestions(nextQuestions);
+
+      if (nextQuestions.length > 0 && classificationResult?.needs_clarification) {
+        setStage("followup");
+        await trackEvent("followup_shown", { count: nextQuestions.length });
+      } else {
+        await handleGetGuidance(classificationResult, {});
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+      setLoadingStep(null);
+    }
+  };
+
+  const handleGetGuidance = async (
+    classificationOverride?: ClassificationResult,
+    answersOverride?: Record<string, string>
+  ) => {
+    try {
+      setLoading(true);
+      setLoadingStep("Generating guidance...");
+      setError(null);
+
+      const activeClassification = classificationOverride || classification;
+      const activeAnswers = answersOverride || answers;
+
+      const data = (await safeFetchJSON("/api/guidance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userInput: input,
+          classification: activeClassification,
+          answers: activeAnswers,
+        }),
+      })) as GuidanceApiResponse;
+
+      if (!data.ok && !data.success) {
+        throw new Error(
+          data?.error || data?.errors?.[0] || "Failed to generate guidance."
+        );
+      }
+
+      setGuidance(data.guidance || data.output || null);
+      setStage("done");
+
+      await trackEvent("guidance_generated", {
+        primary_user_type: activeClassification?.primary_user_type ?? null,
+        primary_scenario: activeClassification?.primary_scenario ?? null,
+        user_intent: activeClassification?.user_intent ?? null,
+        timing: activeClassification?.timing ?? null,
+      });
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while generating guidance."
+      );
+    } finally {
+      setLoading(false);
+      setLoadingStep(null);
+    }
+  };
+
   const handleAction = async (actionType: string) => {
-  try {
-    setActionLoading(true);
+    try {
+      setActionLoading(true);
 
-    await trackEvent("action_clicked", {
-      action_type: actionType,
-      primary_scenario: classification?.primary_scenario ?? null,
-    });
+      await trackEvent("action_clicked", {
+        action_type: actionType,
+        primary_scenario: classification?.primary_scenario ?? null,
+      });
 
-    const data = await safeFetchJSON("/api/action", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: actionType,
-        input,
-        classification,
-        answers,
-      }),
-    });
+      const data = (await safeFetchJSON("/api/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: actionType,
+          input,
+          classification,
+          answers,
+        }),
+      })) as ActionApiResponse;
 
-    if (!data.success) {
-      throw new Error(data?.errors?.[0] || "Action failed");
+      if (!data.success) {
+        throw new Error(data?.errors?.[0] || data?.error || "Action failed");
+      }
+
+      setActionOutput(data.output || null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setActionLoading(false);
     }
+  };
 
-    setActionOutput(data.output);
-  } catch (err: any) {
-    alert(err instanceof Error ? err.message : "Action failed");
-  } finally {
-    setActionLoading(false);
-  }
-};
   const handleAnswerChange = (id: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
   };
@@ -397,27 +639,30 @@ const handleGetGuidance = async (
             <div className="space-y-6">
               <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-card)] sm:p-8">
                 <div className="mb-8">
-                    <div className="flex flex-col items-start gap-0">
-                      <img
-                        src="/inclusy-logo.png"
-                        alt="Inclusy"
-                        className="h-24 w-auto object-contain sm:h-32"
-                      />
+                  <div className="flex flex-col items-start gap-0">
+                    <Image
+                      src="/inclusy-logo.png"
+                      alt="Inclusy"
+                      width={360}
+                      height={160}
+                      priority
+                      className="h-24 w-auto object-contain sm:h-32"
+                    />
 
-                      <p className="text-base font-semibold uppercase tracking-[0.08em] text-[var(--text-main)] sm:text-lg sm:tracking-[0.12em]">
-                        Accessibility Guidance
-                      </p>
-                    </div>
-
-                    <h1 className="mt-8 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
-                      Tell us what’s going on.
-                    </h1>
-
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-muted)]">
-                      Describe a barrier, ask a question, or get help planning for
-                      an accessibility-related situation.
+                    <p className="text-base font-semibold uppercase tracking-[0.08em] text-[var(--text-main)] sm:text-lg sm:tracking-[0.12em]">
+                      Accessibility Guidance
                     </p>
                   </div>
+
+                  <h1 className="mt-8 max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                    Tell us what’s going on.
+                  </h1>
+
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-muted)]">
+                    Describe a barrier, ask a question, or get help planning for
+                    an accessibility-related situation.
+                  </p>
+                </div>
 
                 <div className="mt-8">
                   <label
@@ -614,75 +859,84 @@ const handleGetGuidance = async (
                   </section>
 
                   <div className="grid gap-4">
-                    <SectionCard title="Situation Summary">
-                      <p>{guidance.situation_summary || "No summary provided."}</p>
+                    {guidance.safety && (
+                      <SectionCard title={guidance.safety.title} accent="var(--error)">
+                        <ListBlock items={guidance.safety.items} />
+                      </SectionCard>
+                    )}
+
+                    <SectionCard title={guidance.summary.title}>
+                      <p>{guidance.summary.text}</p>
                     </SectionCard>
 
-                    <SectionCard title="Likely Relevant Frameworks or Standards">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap gap-2">
-                          {guidance.relevant_frameworks?.length ? (
-                            guidance.relevant_frameworks.map((framework: string, i: number) => (
-                              <span
-                                key={`${framework}-${i}`}
-                                className="rounded-full border border-[var(--border-strong)] bg-[var(--primary-soft)] px-3 py-1 text-xs font-medium text-[var(--primary)]"
-                              >
-                                {framework}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[var(--text-soft)]">
-                              No frameworks listed.
-                            </span>
-                          )}
-                        </div>
-
-                        {guidance.frameworks_note && <p>{guidance.frameworks_note}</p>}
-                      </div>
+                    <SectionCard title="What to do first">
+                      <ActionListBlock items={guidance.key_actions} />
                     </SectionCard>
 
-                    <SectionCard title="Recommended Next Steps">
-                      <ListBlock items={guidance.recommended_next_steps} />
-                    </SectionCard>
+                    {guidance.direct_resolution && (
+                      <SectionCard title={guidance.direct_resolution.title}>
+                        <ListBlock items={guidance.direct_resolution.items} />
+                      </SectionCard>
+                    )}
 
-                    <SectionCard title="Request or Documentation Guidance">
-                      <p>
-                        {guidance.request_or_documentation_guidance ||
-                          "Not especially relevant here."}
-                      </p>
-                    </SectionCard>
-
-                    <SectionCard title="If You Encounter a Barrier, Denial, or Inadequate Access">
-                      <p>
-                        {guidance.barrier_denial_guidance ||
-                          "No additional barrier guidance provided."}
-                      </p>
-                    </SectionCard>
+                    {guidance.medical_documentation && (
+                      <SectionCard title={guidance.medical_documentation.title}>
+                        <ListBlock items={guidance.medical_documentation.items} />
+                      </SectionCard>
+                    )}
 
                     <SectionCard
-                      title="Helpful Resources or Types of Support"
+                      title="Get help"
                       accent="var(--accent)"
                     >
-                      <ListBlock
-                        items={guidance.helpful_resources_or_support_types}
-                      />
+                      <ResourceCards items={guidance.help_resources} />
                     </SectionCard>
 
-                    <SectionCard title="Best Practices or Additional Considerations">
-                      <ListBlock
-                        items={
-                          guidance.best_practices_or_additional_considerations
-                        }
-                      />
+                    <SectionCard title="File a complaint">
+                      <FilingCards items={guidance.filing_options} />
                     </SectionCard>
 
-                    <SectionCard
-                      title="Important Note"
-                      accent="var(--warning)"
-                    >
+                    {guidance.deadlines && (
+                      <SectionCard title="Deadlines" accent="var(--warning)">
+                        <DeadlineListBlock items={guidance.deadlines} />
+                      </SectionCard>
+                    )}
+
+                    {guidance.compensation_note && (
+                      <SectionCard title={guidance.compensation_note.title}>
+                        <ListBlock items={guidance.compensation_note.items} />
+                      </SectionCard>
+                    )}
+
+                    {guidance.ombuds_options && (
+                      <SectionCard title="Other ways to resolve this">
+                        <ResourceCards items={guidance.ombuds_options} />
+                      </SectionCard>
+                    )}
+
+                    {guidance.relevant_law && (
+                      <SectionCard title="Relevant law">
+                        <LawCards items={guidance.relevant_law} />
+                      </SectionCard>
+                    )}
+
+                    {guidance.expectation_setting && (
+                      <SectionCard title={guidance.expectation_setting.title}>
+                        <ListBlock items={guidance.expectation_setting.items} />
+                      </SectionCard>
+                    )}
+
+                    {guidance.sources && (
+                      <SectionCard title="Sources">
+                        <SourceList items={guidance.sources} />
+                      </SectionCard>
+                    )}
+
+                    <SectionCard title="Important Note" accent="var(--warning)">
                       <p>
-                        {guidance.important_note ||
-                          "This tool provides general guidance and is not legal advice."}
+                        This tool provides general accessibility guidance and is
+                        not legal advice. Laws, deadlines, filing options, and
+                        available remedies can vary by situation and location.
                       </p>
                     </SectionCard>
                   </div>
@@ -760,41 +1014,49 @@ const handleGetGuidance = async (
                           </p>
                         )}
 
-                        {actionOutput.body && typeof actionOutput.body === "string" && (
-                          <pre className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">
-                            {actionOutput.body}
-                          </pre>
-                        )}
+                        {actionOutput.body &&
+                          typeof actionOutput.body === "string" && (
+                            <pre className="whitespace-pre-wrap text-sm leading-6 text-[var(--text-muted)]">
+                              {actionOutput.body}
+                            </pre>
+                          )}
 
                         {actionOutput.body &&
                           typeof actionOutput.body === "object" &&
                           !Array.isArray(actionOutput.body) && (
                             <div className="space-y-4">
-                              {Object.entries(actionOutput.body).map(([key, value]) => (
-                                <div key={key}>
-                                  <h4 className="mb-1 text-sm font-semibold text-[var(--text-main)]">
-                                    {key}
-                                  </h4>
-                                  <p className="text-sm leading-6 text-[var(--text-muted)]">
-                                    {typeof value === "string" ? value : JSON.stringify(value)}
-                                  </p>
-                                </div>
-                              ))}
+                              {Object.entries(actionOutput.body).map(
+                                ([key, value]) => (
+                                  <div key={key}>
+                                    <h4 className="mb-1 text-sm font-semibold text-[var(--text-main)]">
+                                      {key}
+                                    </h4>
+                                    <p className="text-sm leading-6 text-[var(--text-muted)]">
+                                      {typeof value === "string"
+                                        ? value
+                                        : JSON.stringify(value)}
+                                    </p>
+                                  </div>
+                                )
+                              )}
                             </div>
                           )}
 
-                        {actionOutput.checklist_items?.length > 0 && (
-                          <div className="mt-4 space-y-2">
-                            <h4 className="text-sm font-semibold">Next Steps</h4>
-                            <ul className="list-disc pl-5 text-sm">
-                              {actionOutput.checklist_items.map((item: string, i: number) => (
-                                <li key={i}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        {actionOutput.checklist_items &&
+                          actionOutput.checklist_items.length > 0 && (
+                            <div className="mt-4 space-y-2">
+                              <h4 className="text-sm font-semibold">
+                                Next Steps
+                              </h4>
+                              <ul className="list-disc pl-5 text-sm">
+                                {actionOutput.checklist_items.map((item, i) => (
+                                  <li key={`${item}-${i}`}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
 
-                        {actionOutput.notes?.length > 0 && (
+                        {actionOutput.notes && actionOutput.notes.length > 0 && (
                           <div className="mt-4">
                             <h4 className="mb-2 text-sm font-semibold">
                               Notes
@@ -833,7 +1095,9 @@ const handleGetGuidance = async (
 
             <aside className="space-y-6">
               <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-card)] sm:p-8">
-                <h2 className="text-lg font-semibold">What this can help with</h2>
+                <h2 className="text-lg font-semibold">
+                  What this can help with
+                </h2>
                 <ul className="mt-4 space-y-3 text-sm leading-7 text-[var(--text-muted)]">
                   <li>Accessibility barriers happening now</li>
                   <li>Planning ahead for an upcoming situation</li>

@@ -79,15 +79,20 @@ export async function POST(req: NextRequest) {
       success: true,
       output,
     });
-  } catch (error: any) {
-    console.error("FOLLOWUP ERROR:", error);
+} catch (error: unknown) {
+  console.error("FOLLOWUP ERROR:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        errors: [error?.message || "Failed to generate follow-up questions."],
-      },
-      { status: 500 }
-    );
-  }
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Failed to generate follow-up response.";
+
+  return NextResponse.json(
+    {
+      success: false,
+      errors: [message],
+    },
+    { status: 500 }
+  );
+}
 }

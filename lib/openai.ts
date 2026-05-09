@@ -6,6 +6,24 @@ import {
   SYSTEM_CONTEXT,
 } from "./prompts";
 
+type OpenAITextContent = {
+  type?: string;
+  text?: string;
+};
+
+type OpenAIOutputItem = {
+  type?: string;
+  content?: OpenAITextContent[];
+};
+
+type OpenAIResponseBody = {
+  output_text?: string;
+  output?: OpenAIOutputItem[];
+  error?: {
+    message?: string;
+  };
+};
+
 function ensureReasonableInput(input: string) {
   if (!input.trim()) {
     throw new Error("Input cannot be empty.");
@@ -48,10 +66,12 @@ async function callResponsesAPI(
     throw new Error(`OpenAI API error: ${text}`);
   }
 
-  const data = await res.json();
+  const data = (await res.json()) as OpenAIResponseBody;
+
+  const messageOutput = data.output?.find((item) => item.type === "message");
 
   const text =
-    data.output?.find((o: any) => o.type === "message")?.content?.[0]?.text ||
+    messageOutput?.content?.[0]?.text ||
     data.output_text ||
     "";
 
@@ -110,7 +130,9 @@ export async function runFollowup(
   classification: unknown
 ) {
   const raw = await callResponsesAPI(
-    `${SYSTEM_CONTEXT}\n${FOLLOWUP_PROMPT}\n\nUser input:\n${userInput}\n\nClassification:\n${JSON.stringify(classification)}`,
+    `${SYSTEM_CONTEXT}\n${FOLLOWUP_PROMPT}\n\nUser input:\n${userInput}\n\nClassification:\n${JSON.stringify(
+      classification
+    )}`,
     "gpt-4o-mini"
   );
 
@@ -119,7 +141,9 @@ export async function runFollowup(
 
 export async function runGuidance(payload: unknown) {
   const raw = await callResponsesAPI(
-    `${SYSTEM_CONTEXT}\n${GUIDANCE_PROMPT}\n\nContext:\n${JSON.stringify(payload)}`,
+    `${SYSTEM_CONTEXT}\n${GUIDANCE_PROMPT}\n\nContext:\n${JSON.stringify(
+      payload
+    )}`,
     "gpt-4o-mini"
   );
 
@@ -139,7 +163,9 @@ export async function runGuidance(payload: unknown) {
 
 export async function runAction(payload: unknown) {
   const raw = await callResponsesAPI(
-    `${SYSTEM_CONTEXT}\n${ACTION_PROMPT}\n\nContext:\n${JSON.stringify(payload)}`,
+    `${SYSTEM_CONTEXT}\n${ACTION_PROMPT}\n\nContext:\n${JSON.stringify(
+      payload
+    )}`,
     "gpt-4o-mini"
   );
 

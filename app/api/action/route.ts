@@ -76,13 +76,18 @@ export async function POST(req: NextRequest) {
       success: true,
       output,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("ACTION ERROR:", error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to generate action output.";
 
     return NextResponse.json(
       {
         success: false,
-        errors: [error?.message || "Failed to generate action output."],
+        errors: [message],
       },
       { status: 500 }
     );

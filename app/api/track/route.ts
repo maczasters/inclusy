@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     console.log("TRACK EVENT:", body);
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, errors: ["Tracking failed."] },
       { status: 500 }
